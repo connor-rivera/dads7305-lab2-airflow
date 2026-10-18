@@ -67,6 +67,11 @@ def data_preprocessing(data_b64: str):
 
     min_max_scaler = MinMaxScaler()
     clustering_data_minmax = min_max_scaler.fit_transform(clustering_data)
+    # save the fitted scaler so test data can be scaled the same way at prediction time
+    output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model")
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "scaler.pkl"), "wb") as f:
+        pickle.dump(min_max_scaler, f)
 
     # bytes -> base64 string for XCom
     clustering_serialized_data = pickle.dumps(clustering_data_minmax)
@@ -144,9 +149,13 @@ def load_model_elbow(filename: str, sse: list):
     kl = KneeLocator(range(1, 50), sse, curve="convex", direction="decreasing")
     print(f"Optimal no. of clusters: {kl.elbow}")
 
-    # predict on raw test data (matches your original code)
+    # scale test data with the scaler fitted on the training data, then predict
     df = pd.read_csv(os.path.join(os.path.dirname(__file__), "../data/test.csv"))
-    pred = loaded_model.predict(df)[0]
+    scaler_path = os.path.join(os.path.dirname(__file__), "../model", "scaler.pkl")
+    with open(scaler_path, "rb") as f:
+        scaler = pickle.load(f)
+    test_scaled = scaler.transform(df[["BALANCE", "PURCHASES", "CREDIT_LIMIT"]])
+    pred = loaded_model.predict(test_scaled)[0]
 
     # ensure JSON-safe return
     try:
