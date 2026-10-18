@@ -4,7 +4,7 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator, BranchPythonOperator
 from airflow.sdk.exceptions import AirflowFailException
 from datetime import datetime, timedelta
-from src.lab import load_data, validate_data, data_preprocessing, build_save_model, load_model_elbow
+from src.lab import load_data, validate_data, data_preprocessing, build_save_model, find_optimal_k, train_final_model, load_model_elbow
 
 # NOTE:
 # In Airflow 3.x, enabling XCom pickling should be done via environment variable:
@@ -86,17 +86,32 @@ with DAG(
         op_args=[data_preprocessing_task.output, "model.sav"],
     )
 
-    # Task to load a model using the 'load_model_elbow' function, depends on 'build_save_model_task'
+    # Task to pick the number of clusters with the elbow method, depends on 'build_save_model_task'
+    find_optimal_k_task = PythonOperator(
+        task_id='find_optimal_k_task',
+        python_callable=find_optimal_k,
+        op_args=[build_save_model_task.output],
+    )
+
+    # Task to train and save the final model with the chosen k, depends on 'find_optimal_k_task'
+    train_final_model_task = PythonOperator(
+        task_id='train_final_model_task',
+        python_callable=train_final_model,
+        op_args=[data_preprocessing_task.output, find_optimal_k_task.output, "final_model.sav"],
+    )
+
+    # Task to predict with the final model, depends on 'train_final_model_task'
     load_model_task = PythonOperator(
         task_id='load_model_task',
         python_callable=load_model_elbow,
-        op_args=["model.sav", build_save_model_task.output],
+        op_args=["final_model.sav", build_save_model_task.output],
     )
 
     # Set task dependencies
     load_data_task >> validate_data_task >> check_validation_task
     check_validation_task >> [data_preprocessing_task, report_bad_data_task]
-    data_preprocessing_task >> build_save_model_task >> load_model_task
+    data_preprocessing_task >> build_save_model_task >> find_optimal_k_task >> train_final_model_task
+    train_final_model_task >> load_model_task
 
 # If this script is run directly, allow command-line interaction with the DAG
 if __name__ == "__main__":

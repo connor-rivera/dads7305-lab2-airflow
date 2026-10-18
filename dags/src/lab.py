@@ -98,6 +98,37 @@ def build_save_model(data_b64: str, filename: str):
 
     return sse  # list is JSON-safe
 
+def find_optimal_k(sse: list):
+    """
+    Uses the elbow method on the SSE values to choose the number of clusters.
+    Returns k as a plain int (JSON-safe).
+    """
+    kl = KneeLocator(range(1, 50), sse, curve="convex", direction="decreasing")
+    if kl.elbow is None:
+        raise ValueError("Elbow method could not find an optimal number of clusters")
+    print(f"Optimal no. of clusters: {kl.elbow}")
+    return int(kl.elbow)
+
+
+def train_final_model(data_b64: str, k: int, filename: str):
+    """
+    Trains a KMeans model with the chosen number of clusters and saves it.
+    Returns k so the next task can log it.
+    """
+    # decode -> bytes -> numpy array
+    data_bytes = base64.b64decode(data_b64)
+    df = pickle.loads(data_bytes)
+
+    kmeans = KMeans(n_clusters=k, init="random", n_init=10, max_iter=300, random_state=42)
+    kmeans.fit(df)
+
+    output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model")
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, filename), "wb") as f:
+        pickle.dump(kmeans, f)
+
+    print(f"Saved final {k}-cluster model to model/{filename}")
+    return k
 
 def load_model_elbow(filename: str, sse: list):
     """
@@ -107,6 +138,7 @@ def load_model_elbow(filename: str, sse: list):
     # load the saved (last-fitted) model
     output_path = os.path.join(os.path.dirname(__file__), "../model", filename)
     loaded_model = pickle.load(open(output_path, "rb"))
+    print(f"Loaded model has {loaded_model.n_clusters} clusters")
 
     # elbow for information/logging
     kl = KneeLocator(range(1, 50), sse, curve="convex", direction="decreasing")
