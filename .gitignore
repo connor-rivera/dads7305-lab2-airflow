@@ -2,6 +2,7 @@
 logs/
 plugins/
 .env
+config/
 
 # The model file the DAG saves, recreated on every run
 dags/model/
