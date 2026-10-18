@@ -6,14 +6,14 @@ import pickle
 import os
 import base64
 
-def load_data():
+def load_data(filename: str = "file.csv"):
     """
-    Loads data from a CSV file, serializes it, and returns the serialized data.
+    Loads data from a CSV file in the data folder, serializes it, and returns the serialized data.
     Returns:
         str: Base64-encoded serialized data (JSON-safe).
     """
-    print("We are here")
-    df = pd.read_csv(os.path.join(os.path.dirname(__file__), "../data/file.csv"))
+    print(f"Loading data/{filename}")
+    df = pd.read_csv(os.path.join(os.path.dirname(__file__), "../data", filename))
     serialized_data = pickle.dumps(df)                    # bytes
     return base64.b64encode(serialized_data).decode("ascii")  # JSON-safe string
 
