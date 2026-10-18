@@ -1,0 +1,13 @@
+# Airflow creates these folders and files when it runs
+logs/
+plugins/
+.env
+
+# The model file the DAG saves, recreated on every run
+dags/model/
+
+# Python and Mac clutter
+__pycache__/
+.venv/
+.pytest_cache/
+.DS_Store
