@@ -17,6 +17,42 @@ def load_data():
     serialized_data = pickle.dumps(df)                    # bytes
     return base64.b64encode(serialized_data).decode("ascii")  # JSON-safe string
 
+# Columns the clustering model needs, and limits the data must meet
+REQUIRED_COLUMNS = ["BALANCE", "PURCHASES", "CREDIT_LIMIT"]
+MIN_ROWS = 100
+MAX_MISSING_SHARE = 0.05
+
+def validate_data(data_b64: str):
+    """
+    Checks the loaded data before it is used for training.
+    Returns a list of problems found (an empty list means the data passed).
+    """
+    # decode -> bytes -> DataFrame
+    data_bytes = base64.b64decode(data_b64)
+    df = pickle.loads(data_bytes)
+
+    problems = []
+    missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    if missing_cols:
+        problems.append(f"Missing required columns: {missing_cols}")
+        return problems  # the remaining checks need these columns
+
+    if len(df) < MIN_ROWS:
+        problems.append(f"Only {len(df)} rows; need at least {MIN_ROWS}")
+
+    for col in REQUIRED_COLUMNS:
+        missing_share = df[col].isna().mean()
+        if missing_share > MAX_MISSING_SHARE:
+            problems.append(f"{col} is {missing_share:.1%} missing; limit is {MAX_MISSING_SHARE:.0%}")
+        negatives = int((df[col] < 0).sum())
+        if negatives:
+            problems.append(f"{col} has {negatives} negative values")
+
+    print(f"Validation checked {len(df)} rows: {len(problems)} problem(s) found")
+    for problem in problems:
+        print(f"  - {problem}")
+    return problems
+
 def data_preprocessing(data_b64: str):
     """
     Deserializes base64-encoded pickled data, performs preprocessing,
