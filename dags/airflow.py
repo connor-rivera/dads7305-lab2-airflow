@@ -12,18 +12,21 @@ from src.lab import load_data, data_preprocessing, build_save_model, load_model_
 
 # Define default arguments for your DAG
 default_args = {
-    'owner': 'Ramin Mohammadi',
+    'owner': 'Connor Rivera',
     'start_date': datetime(2026, 1, 15),
-    'retries': 0,  # Number of retries in case of task failure
-    'retry_delay': timedelta(minutes=5),  # Delay before retries
+    'retries': 2,  # Retry a failed task twice before marking it failed
+    'retry_delay': timedelta(minutes=1),  # Wait 1 minute between retries
+    'execution_timeout': timedelta(minutes=10),  # Fail any task that runs longer than 10 minutes
 }
 
 # Create a DAG instance named 'Airflow_Lab1' with the defined default arguments
 with DAG(
     'Airflow_Lab1',
     default_args=default_args,
-    description='Dag example for Lab 1 of Airflow series',
-    catchup=False, 
+    description='K-Means clustering pipeline with data validation (DADS 7305 Lab 2)',
+    schedule='0 6 * * 1',  # Cron schedule: every Monday at 06:00 UTC
+    catchup=False,
+    tags=['dads7305', 'lab2', 'clustering'],
 ) as dag:
 
     # Task to load data, calls the 'load_data' Python function
